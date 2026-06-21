@@ -1,0 +1,23 @@
+FROM node:20-alpine
+WORKDIR /app
+
+# Copy package files first to leverage Docker cache
+COPY package*.json ./
+RUN npm ci
+
+# Workaround for Daedalus SDK missing proto files in the npm package
+RUN mkdir -p /app/node_modules/@omicron-x/server/internal/infrastructure/server/grpc/proto/definitions && \
+    cd /app/node_modules/@omicron-x/server/internal/infrastructure/server/grpc/proto/definitions && \
+    wget -q https://raw.githubusercontent.com/angel-zguerrero/daedalus-orchestrator/main/server/internal/infrastructure/server/grpc/proto/definitions/auth.proto && \
+    wget -q https://raw.githubusercontent.com/angel-zguerrero/daedalus-orchestrator/main/server/internal/infrastructure/server/grpc/proto/definitions/binding.proto && \
+    wget -q https://raw.githubusercontent.com/angel-zguerrero/daedalus-orchestrator/main/server/internal/infrastructure/server/grpc/proto/definitions/exchange.proto && \
+    wget -q https://raw.githubusercontent.com/angel-zguerrero/daedalus-orchestrator/main/server/internal/infrastructure/server/grpc/proto/definitions/jobworker.proto && \
+    wget -q https://raw.githubusercontent.com/angel-zguerrero/daedalus-orchestrator/main/server/internal/infrastructure/server/grpc/proto/definitions/metrics.proto && \
+    wget -q https://raw.githubusercontent.com/angel-zguerrero/daedalus-orchestrator/main/server/internal/infrastructure/server/grpc/proto/definitions/nodescheduler.proto && \
+    wget -q https://raw.githubusercontent.com/angel-zguerrero/daedalus-orchestrator/main/server/internal/infrastructure/server/grpc/proto/definitions/queue.proto && \
+    wget -q https://raw.githubusercontent.com/angel-zguerrero/daedalus-orchestrator/main/server/internal/infrastructure/server/grpc/proto/definitions/tenant.proto
+
+COPY tsconfig.json ./
+COPY src/ ./src/
+
+CMD ["npx", "ts-node", "src/benchmark.ts"]

@@ -1,0 +1,22 @@
+{
+  "name": "messaging-benchmark-suite",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@omicron-x/daedalus-sdk": "^1.0.6",
+    "influx": "^5.12.0",
+    "rascal": "^21.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  daedalus:
+    image: ghcr.io/angel-zguerrero/daedalus-orchestrator:latest
+    container_name: daedalus
+    ports:
+      - "3000:3000"  # Web port
+      - "4000:4000"  # gRPC port
+    environment:
+      - RUST_LOG=info
+      - DEFAULT_ROOT_USER=admin
+      - DEFAULT_ROOT_PASSWORD=admin
+    networks:
+      - benchmark_net
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - benchmark_net
+
+  influxdb:
+    image: influxdb:1.8
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - INFLUXDB_DB=k6
+    networks:
+      - benchmark_net
+
+  telegraf:
+    image: telegraf:1.28
+    container_name: telegraf
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on:
+      - influxdb
+    networks:
+      - benchmark_net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_BASIC_ENABLED=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - influxdb
+    networks:
+      - benchmark_net
+
+networks:
+  benchmark_net:
+    driver: bridge
+    name: benchmark_net
