@@ -46,7 +46,10 @@ export class DaedalusAdapter implements IMessagingAdapter {
             exchangeCode: 'events',
             routingKeyOrPatternOrQueueCode: queueName,
             content: JSON.stringify(message),
-            vnamespace: 'default'
+            vnamespace: 'default',
+            options: {
+                waitForConfirmation: true
+            }
         });
     }
 
@@ -56,7 +59,7 @@ export class DaedalusAdapter implements IMessagingAdapter {
             intervalMs: 100, // aggressive polling
             capacityPolicies: [
                 {
-                    maxQueueMessages: 100,
+                    maxQueueMessages: 300,
                     claimWorkFilter: {
                         tenantPatterns: ['benchmark'],
                         queueCodes: [queueName]

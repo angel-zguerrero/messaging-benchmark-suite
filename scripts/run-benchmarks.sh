@@ -31,7 +31,7 @@ docker build -t benchmark-runner -f Dockerfile.runner .
 
 # Run the benchmark script
 echo "Running benchmark script (Press Ctrl+C to stop)..."
-docker run --rm -it \
+docker run --rm \
   --network benchmark_net \
   -e N=$N -e M=$M \
   -e TARGET=$TARGET \

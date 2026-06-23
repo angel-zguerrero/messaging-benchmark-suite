@@ -36,7 +36,8 @@ export class RabbitMQAdapter implements IMessagingAdapter {
                     publications: {
                         [queueName]: {
                             exchange: 'benchmark_ex',
-                            routingKey: queueName
+                            routingKey: queueName,
+                            confirm: true
                         }
                     },
                     subscriptions: {
