@@ -9,10 +9,12 @@ const TARGET = process.env.TARGET || 'rabbitmq';
 const isQuorum = process.env.QUORUM === 'true';
 const QUEUE_NAME = isQuorum ? 'benchmark_queue_quorum' : 'benchmark_queue';
 
+const INFLUX_DB = 'benchmark_metrics';
+
 const influx = new InfluxDB({
     host: 'influxdb',
     port: 8086,
-    database: 'k6', // Reusing the same database name to avoid extra setup
+    database: INFLUX_DB,
     schema: [
         {
             measurement: 'throughput',
@@ -55,9 +57,9 @@ async function startBenchmark() {
     // Ensure InfluxDB database exists
     try {
         const names = await influx.getDatabaseNames();
-        if (!names.includes('k6')) {
-            await influx.createDatabase('k6');
-            console.log("Created InfluxDB database 'k6'.");
+        if (!names.includes(INFLUX_DB)) {
+            await influx.createDatabase(INFLUX_DB);
+            console.log(`Created InfluxDB database '${INFLUX_DB}'.`);
         }
     } catch (e) {
         console.error("Warning: Could not connect to InfluxDB, metrics won't be saved.", e);

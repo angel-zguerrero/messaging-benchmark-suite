@@ -1,9 +1,10 @@
 apiVersion: 1
 
 datasources:
-  - name: k6
+  - name: benchmark_metrics
+    uid: benchmark_metrics
     type: influxdb
     access: proxy
     url: http://influxdb:8086
-    database: k6
+    database: benchmark_metrics
     isDefault: true

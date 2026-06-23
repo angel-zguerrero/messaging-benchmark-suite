@@ -11,6 +11,8 @@ services:
       - RUST_LOG=info
       - DEFAULT_ROOT_USER=admin
       - DEFAULT_ROOT_PASSWORD=admin
+      # - PUBLISH_BUFFER_FLUSH_INTERVAL_MS=5
+      # - PUBLISH_BUFFER_MAX_SIZE=500
     networks:
       - benchmark_net
 
@@ -32,15 +34,19 @@ services:
     ports:
       - "8086:8086"
     environment:
-      - INFLUXDB_DB=k6
+      - INFLUXDB_DB=benchmark_metrics
     networks:
       - benchmark_net
 
   telegraf:
     image: telegraf:1.28
     container_name: telegraf
+    user: root
+    entrypoint: >
+      sh -c "chmod 777 /var/run/docker.sock.raw && telegraf"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/.docker/run/docker.sock:/var/run/docker.sock.raw
       - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
     depends_on:
       - influxdb
