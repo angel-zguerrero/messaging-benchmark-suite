@@ -61,7 +61,38 @@
           },
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "daedalus - published" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#FF7F00", "mode": "fixed" } },
+              { "id": "displayName", "value": "Daedalus Published" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "daedalus - consumed" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#FF7F00", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
+              { "id": "displayName", "value": "Daedalus Consumed" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "rabbitmq - published" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } },
+              { "id": "displayName", "value": "RabbitMQ Published" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "rabbitmq - consumed" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
+              { "id": "displayName", "value": "RabbitMQ Consumed" }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 9,
@@ -84,23 +115,11 @@
       },
       "targets": [
         {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "benchmark_metrics"
-          },
+          "datasource": { "type": "influxdb", "uid": "benchmark_metrics" },
           "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["broker"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
           ],
           "measurement": "throughput",
           "orderByTime": "ASC",
@@ -109,31 +128,33 @@
           "resultFormat": "time_series",
           "select": [
             [
-              {
-                "params": [
-                  "published"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ],
-            [
-              {
-                "params": [
-                  "consumed"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
+              { "params": ["published"], "type": "field" },
+              { "params": [], "type": "mean" }
             ]
           ],
-          "tags": []
+          "tags": [],
+          "alias": "$tag_broker - published"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "benchmark_metrics" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["broker"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "throughput",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              { "params": ["consumed"], "type": "field" },
+              { "params": [], "type": "mean" }
+            ]
+          ],
+          "tags": [],
+          "alias": "$tag_broker - consumed"
         }
       ],
       "title": "Throughput (Messages per Second)",
@@ -597,6 +618,6 @@
   "timezone": "",
   "title": "Messaging Benchmark",
   "uid": "bench01",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }

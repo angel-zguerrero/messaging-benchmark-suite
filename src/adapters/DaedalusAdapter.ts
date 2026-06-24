@@ -48,7 +48,8 @@ export class DaedalusAdapter implements IMessagingAdapter {
             content: JSON.stringify(message),
             vnamespace: 'default',
             options: {
-                waitForConfirmation: true
+                waitForConfirmation: true,
+                timeoutMs: 15000
             }
         });
     }
