@@ -4,10 +4,12 @@ import { DaedalusAdapter } from './adapters/DaedalusAdapter';
 import { IMessagingAdapter } from './interfaces';
 
 const PUBLISHERS = parseInt(process.env.N || '10', 10);
-const CONSUMERS = parseInt(process.env.M || '10', 10);
+const NUM_QUEUES = parseInt(process.env.Q || '1', 10);
+const WORKERS_PER_QUEUE = parseInt(process.env.W || '1', 10);
 const TARGET = process.env.TARGET || 'rabbitmq';
 const isQuorum = process.env.QUORUM === 'true';
-const QUEUE_NAME = isQuorum ? 'benchmark_queue_quorum' : 'benchmark_queue';
+const BASE_QUEUE_NAME = isQuorum ? 'benchmark_queue_quorum' : 'benchmark_queue';
+const QUEUE_NAMES = Array.from({ length: NUM_QUEUES }, (_, i) => `${BASE_QUEUE_NAME}_${i + 1}`);
 
 const INFLUX_DB = 'benchmark_metrics';
 
@@ -31,15 +33,18 @@ let publishedCount = 0;
 let consumedCount = 0;
 let isRunning = true;
 
-async function runPublisher(adapter: IMessagingAdapter, id: number) {
+async function runPublisher(adapter: IMessagingAdapter, id: number, queues: string[]) {
+    let queueIdx = 0;
     while (isRunning) {
         try {
-            await adapter.publish(QUEUE_NAME, {
+            const queue = queues[queueIdx];
+            await adapter.publish(queue, {
                 timestamp: Date.now(),
                 publisherId: id,
                 data: "Hello from unified benchmark suite!",
                 padding: "x".repeat(500) // Simulate a moderately sized payload
             });
+            queueIdx = (queueIdx + 1) % queues.length;
             publishedCount++;
             
             // Yield to the event loop so we don't completely lock Node
@@ -52,7 +57,7 @@ async function runPublisher(adapter: IMessagingAdapter, id: number) {
 }
 
 async function startBenchmark() {
-    console.log(`Starting benchmark for ${TARGET} with ${PUBLISHERS} publishers and ${CONSUMERS} consumers.`);
+    console.log(`Starting benchmark for ${TARGET} with ${PUBLISHERS} publishers and ${NUM_QUEUES} queues.`);
     
     // Ensure InfluxDB database exists
     try {
@@ -76,25 +81,28 @@ async function startBenchmark() {
 
     try {
         await adapter.connect();
-        await adapter.setup(QUEUE_NAME);
+        // Setup all queues in one call
+        await adapter.setup(QUEUE_NAMES);
         console.log(`✅ ${TARGET} setup complete.`);
     } catch (err) {
         console.error(`❌ Failed to setup ${TARGET}:`, err);
         process.exit(1);
     }
 
-    // Start consumers
-    for (let i = 0; i < CONSUMERS; i++) {
-        await adapter.consume(QUEUE_NAME, async (msg, ack) => {
-            consumedCount++;
-            await ack();
-        });
+    // Start consumers (workers)
+    for (let w = 0; w < WORKERS_PER_QUEUE; w++) {
+        for (const q of QUEUE_NAMES) {
+            await adapter.consume(q, async (msg, ack) => {
+                consumedCount++;
+                await ack();
+            });
+        }
     }
-    console.log(`🚀 ${CONSUMERS} consumers started.`);
+    console.log(`🚀 ${(WORKERS_PER_QUEUE * NUM_QUEUES)} consumers started.`);
 
     // Start publishers
     for (let i = 0; i < PUBLISHERS; i++) {
-        runPublisher(adapter, i);
+        runPublisher(adapter, i, QUEUE_NAMES);
     }
     console.log(`🚀 ${PUBLISHERS} publishers started.`);
 
@@ -111,7 +119,7 @@ async function startBenchmark() {
             await influx.writePoints([
                 {
                     measurement: 'throughput',
-                    tags: { broker: TARGET, scenario: `${PUBLISHERS}p_${CONSUMERS}c` },
+                    tags: { broker: TARGET, scenario: `${PUBLISHERS}p_${WORKERS_PER_QUEUE}w_${NUM_QUEUES}q` },
                     fields: { published: currentPub, consumed: currentCon },
                 }
             ]);

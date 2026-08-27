@@ -16,28 +16,31 @@ export class DaedalusAdapter implements IMessagingAdapter {
         await this.sdk.connect();
     }
 
-    async setup(queueName: string): Promise<void> {
+    async setup(queueNames: string[]): Promise<void> {
+        // Tenant and exchange are asserted once
         await this.sdk.assertTenant({ code: 'benchmark', name: 'Benchmark Tenant' });
         await this.sdk.assertExchange({ tenantCode: 'benchmark', code: 'events', name: 'Events', type: 'topic' });
-        await this.sdk.assertQueue({
-            tenantCode: 'benchmark',
-            code: queueName,
-            name: queueName,
-            type: 'standard',
-            state: 'active',
-            vnamespace: 'default',
-            allowDuplicated: false,
-            maxAttempts: 3,
-            priorityType: 'normal'
-        });
-        await this.sdk.assertBinding({
-            code: `bind-${queueName}`,
-            tenantCode: 'benchmark',
-            exchangeCode: 'events',
-            queueCode: queueName,
-            pattern: queueName,
-            vnamespace: 'default'
-        });
+        for (const queueName of queueNames) {
+            await this.sdk.assertQueue({
+                tenantCode: 'benchmark',
+                code: queueName,
+                name: queueName,
+                type: 'standard',
+                state: 'active',
+                vnamespace: 'default',
+                allowDuplicated: false,
+                maxAttempts: 3,
+                priorityType: 'normal'
+            });
+            await this.sdk.assertBinding({
+                code: `bind-${queueName}`,
+                tenantCode: 'benchmark',
+                exchangeCode: 'events',
+                queueCode: queueName,
+                pattern: queueName,
+                vnamespace: 'default'
+            });
+        }
     }
 
     async publish(queueName: string, message: any): Promise<void> {

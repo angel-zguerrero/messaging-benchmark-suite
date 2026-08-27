@@ -9,43 +9,49 @@ export class RabbitMQAdapter implements IMessagingAdapter {
         // Handled in setup
     }
 
-    async setup(queueName: string): Promise<void> {
+    async setup(queueNames: string[]): Promise<void> {
+        // Setup all queues in a single call
         const config = withDefaultConfig({
             vhosts: {
                 '/': {
                     connection: {
                         // Use rabbitmq container name by default
-                        url: process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672'
+                        url: process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672',
                     },
                     exchanges: {
                         'benchmark_ex': { assert: true, type: 'topic' }
                     },
-                    queues: {
-                        [queueName]: { 
+                    // Dynamically generate queues, bindings, publications, and subscriptions
+                    queues: queueNames.reduce((obj, name) => {
+                        obj[name] = {
                             assert: true,
                             options: process.env.QUORUM === 'true' ? { arguments: { 'x-queue-type': 'quorum' } } : {}
-                        }
-                    },
-                    bindings: {
-                        [`b1_${queueName}`]: {
+                        };
+                        return obj;
+                    }, {} as Record<string, any>),
+                    bindings: queueNames.reduce((obj, name) => {
+                        obj[`b1_${name}`] = {
                             source: 'benchmark_ex',
-                            destination: queueName,
-                            bindingKey: queueName
-                        }
-                    },
-                    publications: {
-                        [queueName]: {
+                            destination: name,
+                            bindingKey: name
+                        };
+                        return obj;
+                    }, {} as Record<string, any>),
+                    publications: queueNames.reduce((obj, name) => {
+                        obj[name] = {
                             exchange: 'benchmark_ex',
-                            routingKey: queueName,
+                            routingKey: name,
                             confirm: true
-                        }
-                    },
-                    subscriptions: {
-                        [queueName]: {
-                            queue: queueName,
+                        };
+                        return obj;
+                    }, {} as Record<string, any>),
+                    subscriptions: queueNames.reduce((obj, name) => {
+                        obj[name] = {
+                            queue: name,
                             prefetch: 100
-                        }
-                    }
+                        };
+                        return obj;
+                    }, {} as Record<string, any>)
                 }
             }
         });
@@ -72,7 +78,7 @@ export class RabbitMQAdapter implements IMessagingAdapter {
                 } else if (typeof content === 'string') {
                     data = JSON.parse(content);
                 }
-                
+
                 await onMessage(data, async () => {
                     ackOrNack();
                 });

@@ -5,9 +5,10 @@ set -e
 
 # Default values
 N=${1:-10}
-M=${2:-10}
-TARGET=${3:-"rabbitmq"}
-QUORUM=${4:-"false"}
+Q=${2:-1}
+W=${3:-1}
+TARGET=${4:-"rabbitmq"}
+QUORUM=${5:-"false"}
 
 if [[ "$TARGET" != "rabbitmq" && "$TARGET" != "daedalus" ]]; then
     echo "Error: Target must be 'rabbitmq' or 'daedalus'"
@@ -17,7 +18,8 @@ fi
 echo "============================================================"
 echo "Starting Unified Node.js Benchmark for $TARGET"
 echo "Publishers (N): $N"
-echo "Consumers (M):  $M"
+echo "Queues (Q):     $Q"
+echo "Workers per queue (W): $W"
 echo "Quorum Queue:   $QUORUM"
 echo "============================================================"
 
@@ -33,9 +35,10 @@ docker build -t benchmark-runner -f Dockerfile.runner .
 echo "Running benchmark script (Press Ctrl+C to stop)..."
 docker run --rm \
   --network benchmark_net \
-  -e N=$N -e M=$M \
+  -e N=$N -e Q=$Q -e W=$W \
   -e TARGET=$TARGET \
   -e QUORUM=$QUORUM \
+  -e DAEDALUS_URL="${DAEDALUS_URL:-http://daedalus:4000}" \
   benchmark-runner
 
 echo "============================================================"
