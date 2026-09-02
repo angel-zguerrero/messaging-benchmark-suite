@@ -40,14 +40,22 @@ export class DaedalusAdapter implements IMessagingAdapter {
             });
         }
 
-        for (const queueName of queueNames) {
-            await this.sdk.assertBinding({
-                code: `bind-${queueName}`,
+        const bindingsConfig = queueNames.map(queueName => ({
+            code: `bind-${queueName}`,
+            tenantCode: 'benchmark',
+            exchangeCode: 'events',
+            queueCode: queueName,
+            pattern: queueName,
+            routingKey: queueName,
+            vnamespace: 'default'
+        }));
+
+        const BINDING_BATCH_SIZE = 200;
+        for (let i = 0; i < bindingsConfig.length; i += BINDING_BATCH_SIZE) {
+            const batch = bindingsConfig.slice(i, i + BINDING_BATCH_SIZE);
+            await this.sdk.bulkAssertBindings({
                 tenantCode: 'benchmark',
-                exchangeCode: 'events',
-                queueCode: queueName,
-                pattern: queueName,
-                vnamespace: 'default'
+                bindings: batch
             });
         }
     }

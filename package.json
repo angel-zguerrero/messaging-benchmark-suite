@@ -10,7 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@omicron-x/daedalus-sdk": "^1.2.4",
+    "@omicron-x/daedalus-sdk": "^1.2.6",
     "influx": "^5.12.0",
     "rascal": "^21.0.1"
   },
