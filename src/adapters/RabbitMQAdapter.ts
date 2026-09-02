@@ -4,18 +4,20 @@ import { IMessagingAdapter } from '../interfaces';
 
 export class RabbitMQAdapter implements IMessagingAdapter {
     private broker!: any;
+    private consumerConnections: any[] = [];
 
     async connect(): Promise<void> {
-        // Handled in setup
+        // Connection is handled inside setup() via Rascal
     }
 
     async setup(queueNames: string[]): Promise<void> {
-        // Setup all queues in a single call
+        // Build a single Rascal config that declares all queues, bindings,
+        // publications and subscriptions up-front.
         const config = withDefaultConfig({
             vhosts: {
                 '/': {
                     connection: {
-                        // Use rabbitmq container name by default
+                        // Use the rabbitmq container name by default
                         url: process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672',
                     },
                     exchanges: {
@@ -68,29 +70,73 @@ export class RabbitMQAdapter implements IMessagingAdapter {
         });
     }
 
-    async consume(queueName: string, onMessage: (msg: any, ack: () => Promise<void>) => Promise<void>): Promise<void> {
-        const subscription = await this.broker.subscribe(queueName);
-        subscription.on('message', async (message: any, content: any, ackOrNack: any) => {
-            try {
-                let data = content;
-                if (Buffer.isBuffer(content)) {
-                    data = JSON.parse(content.toString());
-                } else if (typeof content === 'string') {
-                    data = JSON.parse(content);
-                }
+    /**
+     * RabbitMQ consumer model: each worker unit opens one AMQP subscription per queue.
+     * Total open AMQP channels = numWorkers × queues.length.
+     * Every queue holds an open channel even when it has zero messages in it —
+     * this is the fundamental cost being measured in the sparse-consumer benchmark.
+     */
+    async startConsumers(
+        queues: string[],
+        numWorkers: number,
+        onMessage: (msg: any, ack: () => Promise<void>) => Promise<void>
+    ): Promise<{ totalConsumers: number; description: string }> {
+        const totalConsumers = numWorkers * queues.length;
+        const maxChannelsPerConnection = 2000;
+        const numConnections = Math.ceil(totalConsumers / maxChannelsPerConnection) || 1;
 
-                await onMessage(data, async () => {
-                    ackOrNack();
-                });
-            } catch (err) {
-                console.error("Error processing msg", err);
-                ackOrNack(err, { strategy: 'nack' });
+        const amqplib = require('amqplib');
+        const url = process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672';
+        
+        this.consumerConnections = [];
+        for (let i = 0; i < numConnections; i++) {
+            this.consumerConnections.push(await amqplib.connect(url));
+        }
+
+        let connIdx = 0;
+
+        for (let w = 0; w < numWorkers; w++) {
+            for (const queueName of queues) {
+                const conn = this.consumerConnections[connIdx];
+                connIdx = (connIdx + 1) % this.consumerConnections.length;
+
+                const channel = await conn.createChannel();
+                await channel.prefetch(100);
+                await channel.consume(queueName, async (msg: any) => {
+                    if (msg) {
+                        try {
+                            let data = msg.content;
+                            if (Buffer.isBuffer(msg.content)) {
+                                data = JSON.parse(msg.content.toString());
+                            } else if (typeof msg.content === 'string') {
+                                data = JSON.parse(msg.content);
+                            }
+                            await onMessage(data, async () => {
+                                channel.ack(msg);
+                            });
+                        } catch (err) {
+                            console.error("Error processing msg", err);
+                            channel.nack(msg, false, false);
+                        }
+                    }
+                }, { noAck: false });
             }
-        });
-        subscription.on('error', (err: any) => console.error("Subscription err", err));
+        }
+
+        return {
+            totalConsumers,
+            description: `${numWorkers} workers × ${queues.length} queues = ${totalConsumers} open AMQP channels over ${numConnections} connections`
+        };
     }
 
     async disconnect(): Promise<void> {
+        for (const conn of this.consumerConnections) {
+            try {
+                await conn.close();
+            } catch (err) {
+                console.error("Error closing consumer connection", err);
+            }
+        }
         if (this.broker) await this.broker.shutdown();
     }
 }

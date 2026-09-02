@@ -17,21 +17,30 @@ export class DaedalusAdapter implements IMessagingAdapter {
     }
 
     async setup(queueNames: string[]): Promise<void> {
-        // Tenant and exchange are asserted once
+        // Tenant and exchange are asserted once for the whole benchmark run
         await this.sdk.assertTenant({ code: 'benchmark', name: 'Benchmark Tenant' });
         await this.sdk.assertExchange({ tenantCode: 'benchmark', code: 'events', name: 'Events', type: 'topic' });
-        for (const queueName of queueNames) {
-            await this.sdk.assertQueue({
+        const queuesConfig = queueNames.map(q => ({
+            tenantCode: 'benchmark',
+            code: q,
+            name: q,
+            type: 'standard',
+            state: 'active',
+            vnamespace: 'default',
+            allowDuplicated: false,
+            maxAttempts: 3
+        }));
+
+        const QUEUE_BATCH_SIZE = 200;
+        for (let i = 0; i < queuesConfig.length; i += QUEUE_BATCH_SIZE) {
+            const batch = queuesConfig.slice(i, i + QUEUE_BATCH_SIZE);
+            await this.sdk.bulkAssertQueues({
                 tenantCode: 'benchmark',
-                code: queueName,
-                name: queueName,
-                type: 'standard',
-                state: 'active',
-                vnamespace: 'default',
-                allowDuplicated: false,
-                maxAttempts: 3,
-                priorityType: 'normal'
+                queues: batch
             });
+        }
+
+        for (const queueName of queueNames) {
             await this.sdk.assertBinding({
                 code: `bind-${queueName}`,
                 tenantCode: 'benchmark',
@@ -57,28 +66,52 @@ export class DaedalusAdapter implements IMessagingAdapter {
         });
     }
 
-    async consume(queueName: string, onMessage: (msg: any, ack: () => Promise<void>) => Promise<void>): Promise<void> {
-        await this.sdk.createWorker({
-            workerName: `bench-worker-${Math.random().toString(36).substring(7)}`,
-            intervalMs: 100, // aggressive polling
-            capacityPolicies: [
-                {
-                    maxQueueMessages: 300,
-                    claimWorkFilter: {
-                        tenantPatterns: ['benchmark'],
-                        queueCodes: [queueName]
+    /**
+     * Daedalus consumer model: numWorkers polling workers are created, each covering ALL queues.
+     * Total workers = numWorkers, regardless of how many queues are declared.
+     *
+     * A worker does not hold a persistent channel per queue. When a queue has no messages,
+     * it costs nothing — it simply lives in Pebble (disk). The worker will detect new tasks
+     * on the next polling interval.
+     *
+     * This is the architectural contrast with RabbitMQ:
+     *   - RabbitMQ needs numWorkers × queues.length open AMQP channels.
+     *   - Daedalus needs exactly numWorkers workers, always, regardless of queue count.
+     */
+    async startConsumers(
+        queues: string[],
+        numWorkers: number,
+        onMessage: (msg: any, ack: () => Promise<void>) => Promise<void>
+    ): Promise<{ totalConsumers: number; description: string }> {
+        for (let w = 0; w < numWorkers; w++) {
+            await this.sdk.createWorker({
+                workerName: `bench-worker-${w}-${Math.random().toString(36).substring(7)}`,
+                intervalMs: 10, // poll all queues every 100ms
+                capacityPolicies: [
+                    {
+                        // Each worker can claim up to 300 messages per cycle from ANY queue
+                        maxQueueMessages: 2_000,
+                        claimWorkFilter: {
+                            tenantPatterns: ['benchmark'],
+                            queueCodes: queues // covers ALL declared queues
+                        }
                     }
+                ],
+                onMessage: async (message: any, ack: any) => {
+                    await onMessage(JSON.parse(message.message.content), async () => {
+                        await ack();
+                    });
                 }
-            ],
-            onMessage: async (message: any, ack: any) => {
-                await onMessage(JSON.parse(message.message.content), async () => {
-                    await ack();
-                });
-            }
-        });
+            });
+        }
+
+        return {
+            totalConsumers: numWorkers,
+            description: `${numWorkers} workers (each polling all ${queues.length} queues)`
+        };
     }
 
     async disconnect(): Promise<void> {
-        // exit process handles this for now as sdk disconnect might not be implemented
+        // SDK disconnect is handled by the process exit
     }
 }
