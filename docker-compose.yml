@@ -12,10 +12,11 @@ services:
       - RUST_LOG=info
       - DEFAULT_ROOT_USER=admin
       - DEFAULT_ROOT_PASSWORD=admin
-      - PUBLISH_BUFFER_FLUSH_INTERVAL_MS=5
+      - PUBLISH_BUFFER_FLUSH_INTERVAL_MS=60
       - PUBLISH_BUFFER_MAX_SIZE=500
       - PUBLISH_BUFFER_FLUSH_CONCURRENCY=1
       - OTEL_ACTIVED=false
+      - GOGC=200
     networks:
       - benchmark_net
 
