@@ -14,6 +14,8 @@ services:
       - DEFAULT_ROOT_PASSWORD=admin
       - PUBLISH_BUFFER_FLUSH_INTERVAL_MS=5
       - PUBLISH_BUFFER_MAX_SIZE=500
+      - PUBLISH_BUFFER_FLUSH_CONCURRENCY=1
+      - OTEL_ACTIVED=false
     networks:
       - benchmark_net
 
