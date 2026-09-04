@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   daedalus:
-    image: ghcr.io/angel-zguerrero/daedalus-orchestrator:perf-test
+    image: ghcr.io/angel-zguerrero/daedalus-orchestrator:latest
     hostname: daedalus
     container_name: daedalus
     ports:
@@ -12,9 +12,9 @@ services:
       - RUST_LOG=info
       - DEFAULT_ROOT_USER=admin
       - DEFAULT_ROOT_PASSWORD=admin
-      - PUBLISH_BUFFER_FLUSH_INTERVAL_MS=60
-      - PUBLISH_BUFFER_MAX_SIZE=500
-      - PUBLISH_BUFFER_FLUSH_CONCURRENCY=1
+      - PUBLISH_BUFFER_FLUSH_INTERVAL_MS=50
+      - PUBLISH_BUFFER_MAX_SIZE=250
+      - PUBLISH_BUFFER_FLUSH_CONCURRENCY=8
       - OTEL_ACTIVED=false
       - GOGC=200
     networks:
