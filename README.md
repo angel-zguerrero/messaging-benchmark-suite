@@ -128,6 +128,7 @@ The entire telemetry stack is pre-configured. No manual queries are required.
 
 ### Displayed Metrics
 *   **Throughput**: Real-time graph showing `Published` vs `Consumed` messages per second.
+*   **Total Tasks**: Real-time graph showing total enqueued (`Published`) vs dequeued (`Consumed`) tasks.
 *   **CPU Usage (%)**: Real-time Docker CPU consumption of the active broker container.
 *   **RAM Usage**: Real-time Docker Memory consumption of the active broker container.
 
