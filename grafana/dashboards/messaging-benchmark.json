@@ -472,7 +472,38 @@
           },
           "unit": "Bps"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "daedalus Read" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#FF7F00", "mode": "fixed" } },
+              { "id": "displayName", "value": "Daedalus Read" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "daedalus Write" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#FF7F00", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
+              { "id": "displayName", "value": "Daedalus Write" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "rabbitmq Read" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } },
+              { "id": "displayName", "value": "RabbitMQ Read" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "rabbitmq Write" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
+              { "id": "displayName", "value": "RabbitMQ Write" }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -495,6 +526,7 @@
       },
       "targets": [
         {
+          "alias": "$tag_container_name Read",
           "datasource": {
             "type": "influxdb",
             "uid": "benchmark_metrics"
@@ -534,7 +566,13 @@
               },
               {
                 "params": [],
-                "type": "derivative"
+                "type": "mean"
+              },
+              {
+                "params": [
+                  "1s"
+                ],
+                "type": "non_negative_derivative"
               }
             ]
           ],
@@ -547,6 +585,7 @@
           ]
         },
         {
+          "alias": "$tag_container_name Write",
           "datasource": {
             "type": "influxdb",
             "uid": "benchmark_metrics"
@@ -586,7 +625,13 @@
               },
               {
                 "params": [],
-                "type": "derivative"
+                "type": "mean"
+              },
+              {
+                "params": [
+                  "1s"
+                ],
+                "type": "non_negative_derivative"
               }
             ]
           ],
