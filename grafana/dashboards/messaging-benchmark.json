@@ -72,7 +72,7 @@
           {
             "matcher": { "id": "byName", "options": "daedalus - consumed" },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "#FF7F00", "mode": "fixed" } },
+              { "id": "color", "value": { "fixedColor": "#F2495C", "mode": "fixed" } },
               { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
               { "id": "displayName", "value": "Daedalus Consumed" }
             ]
@@ -87,7 +87,7 @@
           {
             "matcher": { "id": "byName", "options": "rabbitmq - consumed" },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } },
+              { "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } },
               { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
               { "id": "displayName", "value": "RabbitMQ Consumed" }
             ]
