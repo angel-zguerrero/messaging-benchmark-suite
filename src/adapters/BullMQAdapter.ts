@@ -15,10 +15,9 @@ export class BullMQAdapter implements IMessagingAdapter {
     }
 
     async setup(queueNames: string[]): Promise<void> {
-        const redisUrl = process.env.REDIS_URL || 'redis://redis:6379';
         for (const queueName of queueNames) {
             const queue = new Queue(queueName, {
-                connection: new Redis(redisUrl, { maxRetriesPerRequest: null }),
+                connection: this.redisConnection,
                 defaultJobOptions: {
                     removeOnComplete: true,
                     removeOnFail: true
@@ -55,7 +54,7 @@ export class BullMQAdapter implements IMessagingAdapter {
                     },
                     {
                         connection: new Redis(redisUrl, { maxRetriesPerRequest: null }),
-                        concurrency: 1
+                        concurrency: 100
                     }
                 );
                 this.workers.push(worker);
