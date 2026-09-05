@@ -32,7 +32,9 @@ export class BullMQAdapter implements IMessagingAdapter {
         if (!queue) {
             throw new Error(`Queue ${queueName} not setup`);
         }
-        await queue.add('benchmark_job', message);
+        // Providing explicit jobId avoids an extra Redis INCR round-trip during queue.add()
+        const jobId = `${Date.now()}:${Math.random().toString(36).substring(2, 9)}`;
+        await queue.add('benchmark_job', message, { jobId });
     }
 
     async startConsumers(
