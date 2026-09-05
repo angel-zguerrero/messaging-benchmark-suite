@@ -1,75 +1,74 @@
-import amqplib from 'amqplib';
+// @ts-ignore
+import { BrokerAsPromised, withDefaultConfig } from 'rascal';
 import { IMessagingAdapter } from '../interfaces';
 
 export class RabbitMQAdapter implements IMessagingAdapter {
-    private setupConnection: any = null;
-    private publisherConnections: any[] = [];
-    private publisherChannels: any[] = [];
-    private nextPublisherIdx = 0;
+    private broker!: any;
     private consumerConnections: any[] = [];
 
     async connect(): Promise<void> {
-        // Connection management is done inside setup() and startConsumers()
+        // Connection is handled inside setup() via Rascal
     }
 
     async setup(queueNames: string[]): Promise<void> {
         const baseUrl = process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672';
-        // Append heartbeat parameter to URL options
         const url = baseUrl.includes('?') ? `${baseUrl}&heartbeat=0` : `${baseUrl}?heartbeat=0`;
 
-        // Connect with heartbeat disabled (0) via URL option so massive batch topology assertions do not trigger heartbeat timeouts
-        this.setupConnection = await amqplib.connect(url);
-        const channel = await this.setupConnection.createChannel();
-
-        const exchangeName = 'benchmark_ex';
-        await channel.assertExchange(exchangeName, 'topic', { durable: true });
-
-        const isQuorum = process.env.QUORUM === 'true';
-        const queueOptions = isQuorum
-            ? { durable: true, arguments: { 'x-queue-type': 'quorum' } }
-            : { durable: true };
-
-        const BATCH_SIZE = 500;
-        console.log(`Setting up ${queueNames.length} queues in batches of ${BATCH_SIZE}...`);
-
-        for (let i = 0; i < queueNames.length; i += BATCH_SIZE) {
-            const batch = queueNames.slice(i, i + BATCH_SIZE);
-            await Promise.all(
-                batch.map(async (queueName) => {
-                    await channel.assertQueue(queueName, queueOptions);
-                    await channel.bindQueue(queueName, exchangeName, queueName);
-                })
-            );
-            if ((i + BATCH_SIZE) % 5000 === 0 || i + BATCH_SIZE >= queueNames.length) {
-                console.log(`  Processed ${Math.min(i + BATCH_SIZE, queueNames.length)} / ${queueNames.length} queues...`);
+        // Build a single Rascal config that declares all queues, bindings,
+        // publications and subscriptions up-front.
+        const config = withDefaultConfig({
+            vhosts: {
+                '/': {
+                    connection: {
+                        url: url
+                    },
+                    exchanges: {
+                        'benchmark_ex': { assert: true, type: 'topic' }
+                    },
+                    // Dynamically generate queues, bindings, publications, and subscriptions
+                    queues: queueNames.reduce((obj, name) => {
+                        obj[name] = {
+                            assert: true,
+                            options: process.env.QUORUM === 'true' ? { arguments: { 'x-queue-type': 'quorum' } } : {}
+                        };
+                        return obj;
+                    }, {} as Record<string, any>),
+                    bindings: queueNames.reduce((obj, name) => {
+                        obj[`b1_${name}`] = {
+                            source: 'benchmark_ex',
+                            destination: name,
+                            bindingKey: name
+                        };
+                        return obj;
+                    }, {} as Record<string, any>),
+                    publications: queueNames.reduce((obj, name) => {
+                        obj[name] = {
+                            exchange: 'benchmark_ex',
+                            routingKey: name,
+                            confirm: true
+                        };
+                        return obj;
+                    }, {} as Record<string, any>),
+                    subscriptions: queueNames.reduce((obj, name) => {
+                        obj[name] = {
+                            queue: name,
+                            prefetch: 100
+                        };
+                        return obj;
+                    }, {} as Record<string, any>)
+                }
             }
-        }
+        });
 
-        await channel.close();
-
-        // Initialize publisher confirm channels
-        const NUM_PUB_CONNECTIONS = 4;
-        this.publisherConnections = [];
-        this.publisherChannels = [];
-        const pubUrl = baseUrl.includes('?') ? `${baseUrl}&heartbeat=60` : `${baseUrl}?heartbeat=60`;
-        for (let i = 0; i < NUM_PUB_CONNECTIONS; i++) {
-            const conn = await amqplib.connect(pubUrl);
-            const pubChan = await conn.createConfirmChannel();
-            this.publisherConnections.push(conn);
-            this.publisherChannels.push(pubChan);
-        }
+        this.broker = await BrokerAsPromised.create(config);
+        this.broker.on('error', (err: any) => console.error("Broker error", err));
     }
 
     async publish(queueName: string, message: any): Promise<void> {
-        const chan = this.publisherChannels[this.nextPublisherIdx];
-        this.nextPublisherIdx = (this.nextPublisherIdx + 1) % this.publisherChannels.length;
-
-        const content = Buffer.from(JSON.stringify(message));
-        return new Promise<void>((resolve, reject) => {
-            chan.publish('benchmark_ex', queueName, content, { persistent: true }, (err: any) => {
-                if (err) reject(err);
-                else resolve();
-            });
+        const publication = await this.broker.publish(queueName, message);
+        return new Promise((resolve, reject) => {
+            publication.on('success', () => resolve());
+            publication.on('error', reject);
         });
     }
 
@@ -88,13 +87,13 @@ export class RabbitMQAdapter implements IMessagingAdapter {
         const maxChannelsPerConnection = 2000;
         const numConnections = Math.ceil(totalConsumers / maxChannelsPerConnection) || 1;
 
+        const amqplib = require('amqplib');
         const baseUrl = process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672';
-        const consumerUrl = baseUrl.includes('?') ? `${baseUrl}&heartbeat=0` : `${baseUrl}?heartbeat=0`;
+        const url = baseUrl.includes('?') ? `${baseUrl}&heartbeat=0` : `${baseUrl}?heartbeat=0`;
 
         this.consumerConnections = [];
         for (let i = 0; i < numConnections; i++) {
-            // Use heartbeat=0 for consumer connections to avoid timeouts during heavy workloads / channel creation
-            this.consumerConnections.push(await amqplib.connect(consumerUrl));
+            this.consumerConnections.push(await amqplib.connect(url));
         }
 
         let connIdx = 0;
@@ -141,19 +140,6 @@ export class RabbitMQAdapter implements IMessagingAdapter {
                 console.error("Error closing consumer connection", err);
             }
         }
-        for (const conn of this.publisherConnections) {
-            try {
-                await conn.close();
-            } catch (err) {
-                console.error("Error closing publisher connection", err);
-            }
-        }
-        if (this.setupConnection) {
-            try {
-                await this.setupConnection.close();
-            } catch (err) {
-                console.error("Error closing setup connection", err);
-            }
-        }
+        if (this.broker) await this.broker.shutdown();
     }
 }
