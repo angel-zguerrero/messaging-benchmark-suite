@@ -56,7 +56,7 @@ export class BullMQAdapter implements IMessagingAdapter {
                     },
                     {
                         connection: new Redis(redisUrl, { maxRetriesPerRequest: null }),
-                        concurrency: 100
+                        concurrency: 1
                     }
                 );
                 this.workers.push(worker);
