@@ -24,10 +24,6 @@ for (const t of TARGETS) {
     }
 }
 
-const DURATION_ENV = parseInt(process.env.DURATION || '0', 10);
-// If multiple targets are specified and DURATION is 0/not set, default to 30s per target.
-const DURATION_PER_TARGET = DURATION_ENV > 0 ? DURATION_ENV : (TARGETS.length > 1 ? 30 : 0);
-
 // ACTIVE_RATIO controls what fraction of queues publishers push messages into (0.0 – 1.0).
 // ALL queues are declared and monitored by consumers on both brokers regardless of this value.
 // Setting this to 0.2 simulates the real-world 80/20 pattern:
@@ -108,7 +104,9 @@ async function runPublisher(
     }
 }
 
-async function runSingleTargetBenchmark(target: string, durationSec: number) {
+const activeCleanupFns: Array<() => Promise<void>> = [];
+
+async function startSingleTargetBenchmark(target: string): Promise<() => Promise<void>> {
     let publishedCount = 0;
     let consumedCount  = 0;
     let totalPublishedCount = 0;
@@ -116,11 +114,11 @@ async function runSingleTargetBenchmark(target: string, durationSec: number) {
     let isRunning      = true;
 
     console.log('='.repeat(60));
-    console.log(`Benchmark target  : ${target}`);
-    console.log(`Total queues      : ${NUM_QUEUES}  (all declared + monitored)`);
-    console.log(`Active queues     : ${ACTIVE_Q_COUNT}  (${activePct}% — publishers send here)`);
-    console.log(`Idle queues       : ${NUM_QUEUES - ACTIVE_Q_COUNT}  (watched, zero messages)`);
-    console.log(`Workers (W)       : ${WORKERS}`);
+    console.log(`Starting benchmark target : ${target}`);
+    console.log(`Total queues              : ${NUM_QUEUES}  (all declared + monitored)`);
+    console.log(`Active queues             : ${ACTIVE_Q_COUNT}  (${activePct}% — publishers send here)`);
+    console.log(`Idle queues               : ${NUM_QUEUES - ACTIVE_Q_COUNT}  (watched, zero messages)`);
+    console.log(`Workers (W)               : ${WORKERS}`);
     if (target === 'rabbitmq') {
         console.log(`  → RabbitMQ model: ${WORKERS} consumers/queue × ${NUM_QUEUES} queues = ${WORKERS * NUM_QUEUES} open AMQP channels`);
     } else if (target === 'bullmq') {
@@ -128,13 +126,8 @@ async function runSingleTargetBenchmark(target: string, durationSec: number) {
     } else {
         console.log(`  → Daedalus model: ${WORKERS} workers total (each polls all ${NUM_QUEUES} queues)`);
     }
-    console.log(`Publishers (N)    : ${PUBLISHERS}`);
-    console.log(`Scenario tag      : ${SCENARIO_TAG}`);
-    if (durationSec > 0) {
-        console.log(`Duration          : ${durationSec} seconds`);
-    } else {
-        console.log(`Duration          : Indefinite (Press Ctrl+C to stop)`);
-    }
+    console.log(`Publishers (N)            : ${PUBLISHERS}`);
+    console.log(`Scenario tag              : ${SCENARIO_TAG}`);
     console.log('='.repeat(60));
 
     let adapter: IMessagingAdapter;
@@ -168,7 +161,7 @@ async function runSingleTargetBenchmark(target: string, durationSec: number) {
             await ack();
         }
     );
-    console.log(`🚀 Consumers started: ${description}`);
+    console.log(`🚀 Consumers started for ${target}: ${description}`);
 
     // Publishers only send to ACTIVE queues.
     for (let i = 0; i < PUBLISHERS; i++) {
@@ -183,7 +176,7 @@ async function runSingleTargetBenchmark(target: string, durationSec: number) {
             }
         );
     }
-    console.log(`🚀 ${PUBLISHERS} publishers started → writing to ${ACTIVE_Q_COUNT}/${NUM_QUEUES} queues (${activePct}% active).`);
+    console.log(`🚀 ${PUBLISHERS} publishers started for ${target} → writing to ${ACTIVE_Q_COUNT}/${NUM_QUEUES} queues (${activePct}% active).`);
 
     // Metrics reporting loop — writes throughput to InfluxDB every second
     const intervalId = setInterval(async () => {
@@ -212,7 +205,7 @@ async function runSingleTargetBenchmark(target: string, durationSec: number) {
         }
     }, 1000);
 
-    const cleanup = async () => {
+    return async () => {
         isRunning = false;
         clearInterval(intervalId);
         try {
@@ -221,31 +214,6 @@ async function runSingleTargetBenchmark(target: string, durationSec: number) {
             console.error(`Error disconnecting adapter for ${target}:`, e);
         }
     };
-
-    if (durationSec > 0) {
-        await new Promise<void>((resolve) => {
-            const timeoutId = setTimeout(async () => {
-                console.log(`⏱️ Duration of ${durationSec}s reached for ${target}. Stopping...`);
-                await cleanup();
-                setTimeout(() => resolve(), 1000);
-            }, durationSec * 1000);
-
-            const sigintHandler = async () => {
-                clearTimeout(timeoutId);
-                await cleanup();
-                process.exit(0);
-            };
-            process.once('SIGINT', sigintHandler);
-        });
-    } else {
-        await new Promise<void>((_, reject) => {
-            const sigintHandler = async () => {
-                await cleanup();
-                process.exit(0);
-            };
-            process.once('SIGINT', sigintHandler);
-        });
-    }
 }
 
 async function startBenchmark() {
@@ -260,10 +228,22 @@ async function startBenchmark() {
         console.error("Warning: Could not connect to InfluxDB, metrics won't be saved.", e);
     }
 
+    console.log(`Running benchmark targets in parallel: ${TARGETS.join(', ')}`);
+
     for (const target of TARGETS) {
-        await runSingleTargetBenchmark(target, DURATION_PER_TARGET);
+        const cleanup = await startSingleTargetBenchmark(target);
+        activeCleanupFns.push(cleanup);
     }
-    console.log("All target benchmarks completed.");
+
+    console.log(`🚀 All target benchmarks (${TARGETS.join(', ')}) running in parallel (Press Ctrl+C to stop).`);
 }
+
+process.on('SIGINT', async () => {
+    console.log("\nShutting down all benchmark targets...");
+    for (const cleanup of activeCleanupFns) {
+        await cleanup();
+    }
+    process.exit(0);
+});
 
 startBenchmark().catch(console.error);

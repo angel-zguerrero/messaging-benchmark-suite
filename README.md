@@ -36,7 +36,6 @@ The benchmark accepts the following parameters, configurable via positional CLI 
 | `TARGET` / `$4` | `TARGET` | Target messaging broker or comma-separated list of brokers | `rabbitmq` | `rabbitmq`, `daedalus`, `bullmq` (or e.g. `rabbitmq,daedalus,bullmq`) |
 | `QUORUM` / `$5` | `QUORUM` | Enables Quorum queues (RabbitMQ only) | `false` | `true`, `false` |
 | `ACTIVE_RATIO` / `$6` | `ACTIVE_RATIO` | Fraction of queues that publishers write to | `1.0` | Float `0.0`–`1.0` (e.g., `0.2`) |
-| - | `DURATION` | Duration per target in seconds (0 = run indefinitely if single target) | `0` | Integer (e.g., `30`, `60`) |
 | - | `RABBITMQ_URL` | AMQP connection URL for RabbitMQ | `amqp://guest:guest@rabbitmq:5672` | AMQP URI string |
 | - | `DAEDALUS_URL` | gRPC/HTTP service URL for Daedalus | `http://daedalus:4000` | HTTP/gRPC URI string |
 | - | `REDIS_URL` | Redis connection URL for BullMQ | `redis://redis:6379` | Redis URI string |
@@ -98,15 +97,15 @@ With `W=2` and `Q=10`, Daedalus creates **2 workers** (not 20), each polling all
 
 *(Note: During the first 5-10 seconds when executing Daedalus, reconnect warnings may appear in the console while the gRPC server finishes starting up. The SDK will automatically reconnect and start benchmarking).*
 
-### 5. Running Multiple Brokers (Comma-Separated)
-You can specify a list of brokers separated by commas (e.g., `rabbitmq,daedalus,bullmq` or `rabbitmq,bullmq`) to run benchmark tests across multiple brokers sequentially.
+### 5. Running Multiple Brokers in Parallel (Comma-Separated)
+You can specify a list of brokers separated by commas (e.g., `rabbitmq,daedalus,bullmq` or `rabbitmq,bullmq`) to run benchmark tests across multiple brokers in parallel indefinitely until `Ctrl+C`.
 
 ```bash
-# Run all three brokers sequentially (defaults to 30 seconds per target when multiple targets are specified)
+# Run all three brokers concurrently in parallel
 ./scripts/run-benchmarks.sh 10 10 1 rabbitmq,daedalus,bullmq
 
-# Specify a custom run duration (e.g., 60 seconds per target)
-DURATION=60 ./scripts/run-benchmarks.sh 10 10 1 rabbitmq,bullmq
+# Run RabbitMQ and BullMQ in parallel
+./scripts/run-benchmarks.sh 10 10 1 rabbitmq,bullmq
 ```
 
 ### 6. Sparse Consumer — Memory Footprint Test (the key Daedalus advantage)
