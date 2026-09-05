@@ -41,7 +41,9 @@ const influx = new InfluxDB({
             measurement: 'throughput',
             fields: {
                 published: FieldType.INTEGER,
-                consumed: FieldType.INTEGER
+                consumed: FieldType.INTEGER,
+                total_published: FieldType.INTEGER,
+                total_consumed: FieldType.INTEGER
             },
             tags: ['broker', 'scenario']
         }
@@ -50,6 +52,8 @@ const influx = new InfluxDB({
 
 let publishedCount = 0;
 let consumedCount  = 0;
+let totalPublishedCount = 0;
+let totalConsumedCount  = 0;
 let isRunning      = true;
 
 // Scenario tag stored in InfluxDB — includes active ratio for easy Grafana filtering
@@ -79,6 +83,7 @@ async function runPublisher(adapter: IMessagingAdapter, id: number, queues: stri
             // messages and persist them in a single Raft consensus roundtrip.
             await Promise.all(promises);
             publishedCount += PUBLISH_BATCH_SIZE;
+            totalPublishedCount += PUBLISH_BATCH_SIZE;
 
             // Yield to the event loop so we don't completely starve other tasks
             await new Promise(r => setImmediate(r));
@@ -146,6 +151,7 @@ async function startBenchmark() {
         WORKERS,
         async (msg, ack) => {
             consumedCount++;
+            totalConsumedCount++;
             await ack();
         }
     );
@@ -165,14 +171,19 @@ async function startBenchmark() {
         publishedCount = 0;
         consumedCount  = 0;
 
-        console.log(`[${TARGET}] Published: ${currentPub} msgs/sec | Consumed: ${currentCon} msgs/sec | Workers: ${totalConsumers} | Queues: ${ACTIVE_Q_COUNT} active / ${NUM_QUEUES} total`);
+        console.log(`[${TARGET}] Published: ${currentPub} msgs/sec | Consumed: ${currentCon} msgs/sec | Total Published: ${totalPublishedCount} | Total Consumed: ${totalConsumedCount} | Workers: ${totalConsumers} | Queues: ${ACTIVE_Q_COUNT} active / ${NUM_QUEUES} total`);
 
         try {
             await influx.writePoints([
                 {
                     measurement: 'throughput',
                     tags:   { broker: TARGET, scenario: SCENARIO_TAG },
-                    fields: { published: currentPub, consumed: currentCon },
+                    fields: {
+                        published: currentPub,
+                        consumed: currentCon,
+                        total_published: totalPublishedCount,
+                        total_consumed: totalConsumedCount
+                    },
                 }
             ]);
         } catch (e) {

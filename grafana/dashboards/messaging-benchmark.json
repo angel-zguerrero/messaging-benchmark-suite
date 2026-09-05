@@ -96,7 +96,7 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 24,
+        "w": 12,
         "x": 0,
         "y": 0
       },
@@ -158,6 +158,157 @@
         }
       ],
       "title": "Throughput (Messages per Second)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "benchmark_metrics"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "daedalus - total published" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#FF7F00", "mode": "fixed" } },
+              { "id": "displayName", "value": "Daedalus Total Enqueued" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "daedalus - total consumed" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#FF7F00", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
+              { "id": "displayName", "value": "Daedalus Total Dequeued" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "rabbitmq - total published" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } },
+              { "id": "displayName", "value": "RabbitMQ Total Enqueued" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "rabbitmq - total consumed" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
+              { "id": "displayName", "value": "RabbitMQ Total Dequeued" }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "benchmark_metrics" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["broker"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "throughput",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              { "params": ["total_published"], "type": "field" },
+              { "params": [], "type": "mean" }
+            ]
+          ],
+          "tags": [],
+          "alias": "$tag_broker - total published"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "benchmark_metrics" },
+          "groupBy": [
+            { "params": ["$__interval"], "type": "time" },
+            { "params": ["broker"], "type": "tag" },
+            { "params": ["null"], "type": "fill" }
+          ],
+          "measurement": "throughput",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              { "params": ["total_consumed"], "type": "field" },
+              { "params": [], "type": "mean" }
+            ]
+          ],
+          "tags": [],
+          "alias": "$tag_broker - total consumed"
+        }
+      ],
+      "title": "Total Tasks (Enqueued vs Dequeued)",
       "type": "timeseries"
     },
     {
