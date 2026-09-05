@@ -11,14 +11,16 @@ export class RabbitMQAdapter implements IMessagingAdapter {
     }
 
     async setup(queueNames: string[]): Promise<void> {
+        const baseUrl = process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672';
+        const url = baseUrl.includes('?') ? `${baseUrl}&heartbeat=0` : `${baseUrl}?heartbeat=0`;
+
         // Build a single Rascal config that declares all queues, bindings,
         // publications and subscriptions up-front.
         const config = withDefaultConfig({
             vhosts: {
                 '/': {
                     connection: {
-                        // Use the rabbitmq container name by default
-                        url: process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672',
+                        url: url
                     },
                     exchanges: {
                         'benchmark_ex': { assert: true, type: 'topic' }
@@ -86,8 +88,9 @@ export class RabbitMQAdapter implements IMessagingAdapter {
         const numConnections = Math.ceil(totalConsumers / maxChannelsPerConnection) || 1;
 
         const amqplib = require('amqplib');
-        const url = process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672';
-        
+        const baseUrl = process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672';
+        const url = baseUrl.includes('?') ? `${baseUrl}&heartbeat=0` : `${baseUrl}?heartbeat=0`;
+
         this.consumerConnections = [];
         for (let i = 0; i < numConnections; i++) {
             this.consumerConnections.push(await amqplib.connect(url));
