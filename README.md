@@ -1,17 +1,19 @@
 # Messaging Benchmark Suite
 
-This repository contains a unified benchmark suite designed to compare the throughput and hardware resource consumption of **RabbitMQ** vs. **Daedalus Orchestrator** under heavy workloads.
+This repository contains a unified benchmark suite designed to compare the throughput and hardware resource consumption of **RabbitMQ** vs. **Daedalus Orchestrator** vs. **BullMQ** under heavy workloads.
 
 The suite uses a custom Node.js runner to publish and consume thousands of messages per second, while automatically monitoring hardware metrics via Telegraf and displaying real-time results in a pre-configured Grafana dashboard.
 
 ## Architecture
 
-*   **Node.js Runner**: A scalable runner that initializes a configurable number of publishers, queues, and workers. Supports pluggable adapters for RabbitMQ (`rascal`) and Daedalus (`@omicron-x/daedalus-sdk`). The key architectural difference is how each adapter implements workers:
+*   **Node.js Runner**: A scalable runner that initializes a configurable number of publishers, queues, and workers. Supports pluggable adapters for RabbitMQ (`rascal`), Daedalus (`@omicron-x/daedalus-sdk`), and BullMQ (`bullmq`). The key architectural difference is how each adapter implements workers:
     *   **RabbitMQ**: W workers × Q queues = W×Q open AMQP channels (one dedicated channel per queue, per worker — even when the queue is empty).
     *   **Daedalus**: W polling workers total, each covering all Q queues. No channel is held open per queue; idle queues cost zero RAM or connections.
+    *   **BullMQ**: W workers × Q queues = W×Q BullMQ workers connected to Redis.
 *   **Message Brokers**:
     *   **RabbitMQ**: Evaluated in both "Classic" (in-memory) and "Quorum" (disk-backed consensus via Raft) modes.
     *   **Daedalus Orchestrator**: A durable workflow and messaging orchestrator.
+    *   **BullMQ**: A Redis-based message and job queue for Node.js.
 *   **Telemetry Stack**:
     *   **Telegraf**: Monitors the Docker socket (`/var/run/docker.sock`) to extract precise CPU and RAM usage from broker containers.
     *   **InfluxDB**: Time-series database storing application throughput metrics (msgs/sec) as well as hardware metrics.
@@ -31,11 +33,12 @@ The benchmark accepts the following parameters, configurable via positional CLI 
 | `N` / `$1` | `N` | Number of concurrent publisher loops | `10` | Integer (e.g., `0`, `10`, `100`) |
 | `Q` / `$2` | `Q` | Number of created queues (`benchmark_queue_1..N`) | `1` | Integer (e.g., `1`, `10`, `200`) |
 | `W` / `$3` | `W` | Number of concurrent worker units | `1` | Integer (e.g., `1`, `5`, `10`) |
-| `TARGET` / `$4` | `TARGET` | Target messaging broker | `rabbitmq` | `rabbitmq`, `daedalus` |
+| `TARGET` / `$4` | `TARGET` | Target messaging broker | `rabbitmq` | `rabbitmq`, `daedalus`, `bullmq` |
 | `QUORUM` / `$5` | `QUORUM` | Enables Quorum queues (RabbitMQ only) | `false` | `true`, `false` |
 | `ACTIVE_RATIO` / `$6` | `ACTIVE_RATIO` | Fraction of queues that publishers write to | `1.0` | Float `0.0`–`1.0` (e.g., `0.2`) |
 | - | `RABBITMQ_URL` | AMQP connection URL for RabbitMQ | `amqp://guest:guest@rabbitmq:5672` | AMQP URI string |
 | - | `DAEDALUS_URL` | gRPC/HTTP service URL for Daedalus | `http://daedalus:4000` | HTTP/gRPC URI string |
+| - | `REDIS_URL` | Redis connection URL for BullMQ | `redis://redis:6379` | Redis URI string |
 
 > [!NOTE]
 > **`W` means different things to each broker — this is intentional:**
@@ -75,7 +78,15 @@ Quorum queues force RabbitMQ to replicate and persist messages to disk using the
 ./scripts/run-benchmarks.sh 10 10 1 rabbitmq true
 ```
 
-### 3. Daedalus Orchestrator
+### 3. BullMQ
+Tests BullMQ using Redis. You can also view Redis keys and queues in real time via **Redis Commander** at **[http://localhost:8082](http://localhost:8082)**.
+
+```bash
+# 10 publishers, 10 queues, 1 worker → BullMQ creates 1×10 = 10 workers
+./scripts/run-benchmarks.sh 10 10 1 bullmq
+```
+
+### 4. Daedalus Orchestrator
 Tests the Daedalus SDK. Unlike RabbitMQ, `W` is the total number of polling workers — not per-queue.
 With `W=2` and `Q=10`, Daedalus creates **2 workers** (not 20), each polling all 10 queues.
 
@@ -86,7 +97,7 @@ With `W=2` and `Q=10`, Daedalus creates **2 workers** (not 20), each polling all
 
 *(Note: During the first 5-10 seconds when executing Daedalus, reconnect warnings may appear in the console while the gRPC server finishes starting up. The SDK will automatically reconnect and start benchmarking).*
 
-### 4. Sparse Consumer — Memory Footprint Test (the key Daedalus advantage)
+### 5. Sparse Consumer — Memory Footprint Test (the key Daedalus advantage)
 
 This scenario replicates the real-world 80/20 pattern: **80% of the time, only 20% of queues
 receive tasks**. Both brokers must watch all Q queues because you never know which one will

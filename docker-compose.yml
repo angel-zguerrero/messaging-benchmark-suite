@@ -34,6 +34,26 @@ services:
     networks:
       - benchmark_net
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - benchmark_net
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    ports:
+      - "8082:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    networks:
+      - benchmark_net
+
   influxdb:
     image: influxdb:1.8
     container_name: influxdb

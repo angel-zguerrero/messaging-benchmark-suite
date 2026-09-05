@@ -1,6 +1,7 @@
 import { InfluxDB, FieldType } from 'influx';
 import { RabbitMQAdapter } from './adapters/RabbitMQAdapter';
 import { DaedalusAdapter } from './adapters/DaedalusAdapter';
+import { BullMQAdapter } from './adapters/BullMQAdapter';
 import { IMessagingAdapter } from './interfaces';
 
 const PUBLISHERS = parseInt(process.env.N || '10', 10);
@@ -103,6 +104,8 @@ async function startBenchmark() {
     console.log(`Workers (W)       : ${WORKERS}`);
     if (TARGET === 'rabbitmq') {
         console.log(`  → RabbitMQ model: ${WORKERS} consumers/queue × ${NUM_QUEUES} queues = ${WORKERS * NUM_QUEUES} open AMQP channels`);
+    } else if (TARGET === 'bullmq') {
+        console.log(`  → BullMQ model: ${WORKERS} workers/queue × ${NUM_QUEUES} queues = ${WORKERS * NUM_QUEUES} BullMQ workers`);
     } else {
         console.log(`  → Daedalus model: ${WORKERS} workers total (each polls all ${NUM_QUEUES} queues)`);
     }
@@ -126,6 +129,8 @@ async function startBenchmark() {
         adapter = new RabbitMQAdapter();
     } else if (TARGET === 'daedalus') {
         adapter = new DaedalusAdapter();
+    } else if (TARGET === 'bullmq') {
+        adapter = new BullMQAdapter();
     } else {
         throw new Error(`Unknown target: ${TARGET}`);
     }
