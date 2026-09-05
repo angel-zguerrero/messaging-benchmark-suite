@@ -79,7 +79,7 @@ Quorum queues force RabbitMQ to replicate and persist messages to disk using the
 ```
 
 ### 3. BullMQ
-Tests BullMQ using Redis.
+Tests BullMQ using Redis. You can also view Redis keys and queues in real time via **Redis Commander** at **[http://localhost:8082](http://localhost:8082)**.
 
 ```bash
 # 10 publishers, 10 queues, 1 worker → BullMQ creates 1×10 = 10 workers

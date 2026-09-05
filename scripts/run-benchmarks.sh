@@ -30,7 +30,7 @@ echo "============================================================"
 
 # Ensure infrastructure is up
 echo "Ensuring infrastructure is running..."
-docker-compose up -d rabbitmq redis influxdb telegraf grafana
+docker-compose up -d rabbitmq redis redis-commander influxdb telegraf grafana
 
 # Always recreate Daedalus to wipe stale queue state from previous runs.
 # We use -V to ensure anonymous volumes are recreated (wiping Raft state).
