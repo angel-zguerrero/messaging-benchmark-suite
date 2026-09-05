@@ -19,5 +19,5 @@ RUN mkdir -p /app/node_modules/@omicron-x/server/internal/infrastructure/server/
 
 COPY tsconfig.json ./
 COPY src/ ./src/
-
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 CMD ["npx", "ts-node", "src/benchmark.ts"]

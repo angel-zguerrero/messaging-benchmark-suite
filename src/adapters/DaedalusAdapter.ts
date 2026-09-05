@@ -69,7 +69,7 @@ export class DaedalusAdapter implements IMessagingAdapter {
             vnamespace: 'default',
             options: {
                 waitForConfirmation: true,
-                timeoutMs: 15000
+                timeoutMs: 60000
             }
         });
     }
