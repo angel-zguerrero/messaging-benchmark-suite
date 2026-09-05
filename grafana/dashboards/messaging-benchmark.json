@@ -91,6 +91,21 @@
               { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
               { "id": "displayName", "value": "RabbitMQ Consumed" }
             ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "bullmq - published" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#A35220", "mode": "fixed" } },
+              { "id": "displayName", "value": "BullMQ Published" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "bullmq - consumed" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#E5A000", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
+              { "id": "displayName", "value": "BullMQ Consumed" }
+            ]
           }
         ]
       },
@@ -241,6 +256,21 @@
               { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } },
               { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
               { "id": "displayName", "value": "RabbitMQ Total Dequeued" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "bullmq - total published" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#A35220", "mode": "fixed" } },
+              { "id": "displayName", "value": "BullMQ Total Enqueued" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "bullmq - total consumed" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#A35220", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
+              { "id": "displayName", "value": "BullMQ Total Dequeued" }
             ]
           }
         ]
@@ -433,7 +463,7 @@
             {
               "key": "container_name",
               "operator": "=~",
-              "value": "/^(daedalus|rabbitmq)$/"
+              "value": "/^(daedalus|rabbitmq|redis)$/"
             }
           ]
         }
@@ -563,7 +593,7 @@
             {
               "key": "container_name",
               "operator": "=~",
-              "value": "/^(daedalus|rabbitmq)$/"
+              "value": "/^(daedalus|rabbitmq|redis)$/"
             }
           ]
         }
@@ -653,6 +683,21 @@
               { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
               { "id": "displayName", "value": "RabbitMQ Write" }
             ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "redis Read" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#A35220", "mode": "fixed" } },
+              { "id": "displayName", "value": "Redis Read" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "redis Write" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#A35220", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [8, 8], "fill": "dash" } },
+              { "id": "displayName", "value": "Redis Write" }
+            ]
           }
         ]
       },
@@ -731,7 +776,7 @@
             {
               "key": "container_name",
               "operator": "=~",
-              "value": "/^(daedalus|rabbitmq)$/"
+              "value": "/^(daedalus|rabbitmq|redis)$/"
             }
           ]
         },
@@ -790,7 +835,7 @@
             {
               "key": "container_name",
               "operator": "=~",
-              "value": "/^(daedalus|rabbitmq)$/"
+              "value": "/^(daedalus|rabbitmq|redis)$/"
             }
           ]
         }

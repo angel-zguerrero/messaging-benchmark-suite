@@ -11,7 +11,9 @@
   "description": "",
   "dependencies": {
     "@omicron-x/daedalus-sdk": "^1.2.6",
+    "bullmq": "^5.41.6",
     "influx": "^5.12.0",
+    "ioredis": "^5.5.0",
     "rascal": "^21.0.1"
   },
   "devDependencies": {

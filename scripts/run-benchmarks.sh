@@ -14,8 +14,8 @@ QUORUM=${5:-"false"}
 # Example: 0.2 means 20% of queues have consumers; the other 80% are declared but idle.
 ACTIVE_RATIO=${6:-"1.0"}
 
-if [[ "$TARGET" != "rabbitmq" && "$TARGET" != "daedalus" ]]; then
-    echo "Error: Target must be 'rabbitmq' or 'daedalus'"
+if [[ "$TARGET" != "rabbitmq" && "$TARGET" != "daedalus" && "$TARGET" != "bullmq" ]]; then
+    echo "Error: Target must be 'rabbitmq', 'daedalus', or 'bullmq'"
     exit 1
 fi
 
@@ -30,7 +30,7 @@ echo "============================================================"
 
 # Ensure infrastructure is up
 echo "Ensuring infrastructure is running..."
-docker-compose up -d rabbitmq influxdb telegraf grafana
+docker-compose up -d rabbitmq redis influxdb telegraf grafana
 
 # Always recreate Daedalus to wipe stale queue state from previous runs.
 # We use -V to ensure anonymous volumes are recreated (wiping Raft state).
@@ -52,6 +52,7 @@ docker run --rm \
   -e QUORUM=$QUORUM \
   -e ACTIVE_RATIO=$ACTIVE_RATIO \
   -e DAEDALUS_URL="${DAEDALUS_URL:-http://daedalus:4000}" \
+  -e REDIS_URL="${REDIS_URL:-redis://redis:6379}" \
   benchmark-runner
 
 echo "============================================================"

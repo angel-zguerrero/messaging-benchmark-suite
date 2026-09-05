@@ -32,6 +32,14 @@ services:
     networks:
       - benchmark_net
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - benchmark_net
+
   influxdb:
     image: influxdb:1.8
     container_name: influxdb
