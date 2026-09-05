@@ -42,7 +42,6 @@ export class BullMQAdapter implements IMessagingAdapter {
         numWorkers: number,
         onMessage: (msg: any, ack: () => Promise<void>) => Promise<void>
     ): Promise<{ totalConsumers: number; description: string }> {
-        const redisUrl = process.env.REDIS_URL || 'redis://redis:6379';
         const totalConsumers = numWorkers * queues.length;
 
         for (let w = 0; w < numWorkers; w++) {
@@ -55,7 +54,7 @@ export class BullMQAdapter implements IMessagingAdapter {
                         });
                     },
                     {
-                        connection: new Redis(redisUrl, { maxRetriesPerRequest: null }),
+                        connection: this.redisConnection,
                         concurrency: 1
                     }
                 );
